@@ -21,6 +21,14 @@ type API =
     :<|> "cliente" :> ReqBody '[JSON] Cliente :> Post '[JSON] ResultadoResponse 
     :<|> "cliente"  :> Verb 'OPTIONS 200 '[JSON] ()
     :<|> "clientes" :> Get '[JSON] ClienteResponse
+    :<|> "cliente" :> Capture "id" Int :> Get '[JSON] Cliente
+
+handlerClienteById :: Connection -> Int -> Handler Cliente
+handlerClienteById conn clienteId = do
+    res <- liftIO $ query conn "SELECT * FROM Cliente WHERE id = ?" (Only clienteId)
+    case res of
+        [(id', nome', cpf')] -> pure (Cliente id' nome' cpf')
+        _ -> throwError err404
 
 handlerClienteTodos :: Connection -> Handler ClienteResponse
 handlerClienteTodos conn = do 
@@ -52,6 +60,7 @@ server conn = handlerHello
             :<|> handlerCliente conn 
             :<|> options 
             :<|> handlerClienteTodos conn
+            :<|> handlerClienteById conn
 
 addCorsHeader :: Middleware
 addCorsHeader app' req resp =
