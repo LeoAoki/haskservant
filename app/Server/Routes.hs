@@ -25,16 +25,24 @@ type API =
     :<|> "cliente" :> Capture "id" Int :> "nome" :> ReqBody '[JSON] ClienteNome :> Patch '[JSON] NoContent
     :<|> "cliente" :> Capture "id" Int :> ReqBody '[JSON] Cliente :> Put '[JSON] NoContent
     :<|> "cliente" :> Capture "id" Int :> Delete '[JSON] NoContent
+    :<|> "cliente" :> ReqBody '[JSON] Cliente :> Post '[JSON] ResultadoResponse
 
-handlerDeleteCliente :: Connection -> Int -> Handler NoContent
-handlerDeleteCliente conn clienteId = do
+handlerPostCliente :: Connection -> Cliente -> Handler ResultadoResponse
+handlerPostCliente conn cli = do
+    res <- liftIO $ query conn "INSERT INTO Cliente (nome, cpf) VALUES (?, ?) RETURNING id" (nome cli, cpf cli)
+    case res of
+        [Only newId] -> pure (ResultadoResponse newId)
+        _ -> throwError err500
+
+handleDeleteCliente :: Connection -> Int -> Handler NoContent
+handleDeleteCliente conn clienteId = do
     res <- liftIO $ execute conn "DELETE FROM Cliente WHERE id = ?" (Only clienteId)
     if res == 1
         then pure NoContent
         else throwError err404
 
-handlerPutCliente :: Connection -> Int -> Cliente -> Handler NoContent
-handlerPutCliente conn clienteId cli = do
+handlePutCliente :: Connection -> Int -> Cliente -> Handler NoContent
+handlePutCliente conn clienteId cli = do
     res <- liftIO $ execute conn "UPDATE Cliente SET nome = ?, cpf = ? WHERE id = ?" (nome cli, cpf cli, clienteId)
 
 handlerPatchClienteNome :: Connection -> Int -> ClienteNome -> Handler NoContent
@@ -83,7 +91,9 @@ server conn = handlerHello
             :<|> handlerClienteTodos conn
             :<|> handlerClienteById conn
             :<|> handlerPatchClienteNome conn
-            :<|> handlerDeleteCliente conn
+            :<|> handlePutCliente conn
+            :<|> handleDeleteCliente conn
+            :<|> handlerPostCliente conn
 
 addCorsHeader :: Middleware
 addCorsHeader app' req resp =
