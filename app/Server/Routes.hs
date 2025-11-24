@@ -24,6 +24,14 @@ type API =
     :<|> "cliente" :> Capture "id" Int :> Get '[JSON] Cliente
     :<|> "cliente" :> Capture "id" Int :> "nome" :> ReqBody '[JSON] ClienteNome :> Patch '[JSON] NoContent
     :<|> "cliente" :> Capture "id" Int :> ReqBody '[JSON] Cliente :> Put '[JSON] NoContent
+    :<|> "cliente" :> Capture "id" Int :> Delete '[JSON] NoContent
+
+handlerDeleteCliente :: Connection -> Int -> Handler NoContent
+handlerDeleteCliente conn clienteId = do
+    res <- liftIO $ execute conn "DELETE FROM Cliente WHERE id = ?" (Only clienteId)
+    if res == 1
+        then pure NoContent
+        else throwError err404
 
 handlerPutCliente :: Connection -> Int -> Cliente -> Handler NoContent
 handlerPutCliente conn clienteId cli = do
@@ -75,6 +83,7 @@ server conn = handlerHello
             :<|> handlerClienteTodos conn
             :<|> handlerClienteById conn
             :<|> handlerPatchClienteNome conn
+            :<|> handlerDeleteCliente conn
 
 addCorsHeader :: Middleware
 addCorsHeader app' req resp =
