@@ -32,3 +32,9 @@ data ClienteResponse = ClienteResponse {
 } deriving (Show, Generic)
 
 instance ToJSON ClienteResponse where
+
+data ClienteNome = ClienteNome {
+    novoNome :: String
+} deriving (Show, Generic)
+
+instance FromJSON ClienteNome where

@@ -22,6 +22,14 @@ type API =
     :<|> "cliente"  :> Verb 'OPTIONS 200 '[JSON] ()
     :<|> "clientes" :> Get '[JSON] ClienteResponse
     :<|> "cliente" :> Capture "id" Int :> Get '[JSON] Cliente
+    :<|> "cliente" :> Capture "id" Int :> "nome" :> ReqBody '[JSON] ClienteNome :> Patch '[JSON] NoContent
+
+handlerPatchClienteNome :: Connection -> Int -> ClienteNome -> Handler NoContent
+handlerPatchClienteNome conn clienteId (ClienteNome novoNome) = do
+    res <- liftIO $ execute conn "UPDATE Cliente SET nome = ? WHERE id = ?" (novoNome, clienteId)
+    if res == 1
+        then pure NoContent
+        else throwError err404
 
 handlerClienteById :: Connection -> Int -> Handler Cliente
 handlerClienteById conn clienteId = do
@@ -61,6 +69,7 @@ server conn = handlerHello
             :<|> options 
             :<|> handlerClienteTodos conn
             :<|> handlerClienteById conn
+            :<|> handlerPatchClienteNome conn
 
 addCorsHeader :: Middleware
 addCorsHeader app' req resp =
