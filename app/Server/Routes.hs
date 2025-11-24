@@ -23,6 +23,11 @@ type API =
     :<|> "clientes" :> Get '[JSON] ClienteResponse
     :<|> "cliente" :> Capture "id" Int :> Get '[JSON] Cliente
     :<|> "cliente" :> Capture "id" Int :> "nome" :> ReqBody '[JSON] ClienteNome :> Patch '[JSON] NoContent
+    :<|> "cliente" :> Capture "id" Int :> ReqBody '[JSON] Cliente :> Put '[JSON] NoContent
+
+handlerPutCliente :: Connection -> Int -> Cliente -> Handler NoContent
+handlerPutCliente conn clienteId cli = do
+    res <- liftIO $ execute conn "UPDATE Cliente SET nome = ?, cpf = ? WHERE id = ?" (nome cli, cpf cli, clienteId)
 
 handlerPatchClienteNome :: Connection -> Int -> ClienteNome -> Handler NoContent
 handlerPatchClienteNome conn clienteId (ClienteNome novoNome) = do

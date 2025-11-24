@@ -19,7 +19,7 @@ data ResultadoResponse = ResultadoResponse {
 instance ToJSON ResultadoResponse where 
 
 data Cliente = Cliente {
-    id :: Int,
+    idCliente :: Int,
     nome :: String,
     cpf :: String
 } deriving (Show, Generic)
