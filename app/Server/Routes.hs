@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 module Server.Routes where
@@ -70,7 +71,7 @@ server conn =
   :<|> handlerPostVehicle conn
   :<|> options
   :<|> handlerGetVehicle conn
-  :<|> options
+  :<|> (\_ -> options)
   :<|> handlerPutVehicle conn
   :<|> handlerPatchModelo conn
   :<|> handlerDeleteVehicle conn

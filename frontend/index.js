@@ -5,12 +5,16 @@ async function fetchJson(url, options = {}) {
         headers: { "content-type": "application/json" },
         ...options,
     });
+    const text = await response.text();
     if (!response.ok) {
-        const text = await response.text();
         throw new Error(text || `Erro HTTP ${response.status}`);
     }
-    if (response.status === 204) return null;
-    return response.json();
+    if (!text.trim()) return null;
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        throw new Error(text || "Resposta vazia ou inválida");
+    }
 }
 
 async function carregarVeiculos() {
