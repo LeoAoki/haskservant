@@ -39,15 +39,15 @@ handlerGetVehicle conn vehicleId = do
     _ -> throwError err404
 
 handlerPostVehicle :: Connection -> VehicleInput -> Handler VehicleIdResponse
-handlerPostVehicle conn VehicleInput {placa, modelo, ano} = do
-  res <- liftIO $ query conn "INSERT INTO Veiculo (placa, modelo, ano) VALUES (?, ?, ?) RETURNING id" (placa, modelo, ano)
+handlerPostVehicle conn VehicleInput {placa = placaIn, modelo = modeloIn, ano = anoIn} = do
+  res <- liftIO $ query conn "INSERT INTO Veiculo (placa, modelo, ano) VALUES (?, ?, ?) RETURNING id" (placaIn, modeloIn, anoIn)
   case res of
     [Only newId] -> pure (VehicleIdResponse newId)
     _ -> throwError err500
 
 handlerPutVehicle :: Connection -> Int -> VehicleInput -> Handler NoContent
-handlerPutVehicle conn vehicleId VehicleInput {placa, modelo, ano} = do
-  res <- liftIO $ execute conn "UPDATE Veiculo SET placa = ?, modelo = ?, ano = ? WHERE id = ?" (placa, modelo, ano, vehicleId)
+handlerPutVehicle conn vehicleId VehicleInput {placa = placaIn, modelo = modeloIn, ano = anoIn} = do
+  res <- liftIO $ execute conn "UPDATE Veiculo SET placa = ?, modelo = ?, ano = ? WHERE id = ?" (placaIn, modeloIn, anoIn, vehicleId)
   if res == 1 then pure NoContent else throwError err404
 
 handlerPatchModelo :: Connection -> Int -> VehicleModelo -> Handler NoContent
