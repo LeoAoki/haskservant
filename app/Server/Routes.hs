@@ -1,111 +1,93 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Server.Routes where 
+{-# LANGUAGE TypeOperators #-}
+module Server.Routes where
 
 import Api.Model
+import Control.Monad.Except
+import Control.Monad.IO.Class
 import Data.Proxy
+import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.Types (Only (..))
 import Network.Wai
-import Servant.API.Sub
 import Servant.API
 import Servant.Server
-import Database.PostgreSQL.Simple
-import Control.Monad.IO.Class
-import Control.Monad.Except
 
-type API = 
-         "hello" :> Get '[PlainText] String 
-    :<|> "soma" :> ReqBody '[JSON] Calculadora :> Post '[JSON] ResultadoResponse
-    :<|> "soma"  :> Verb 'OPTIONS 200 '[JSON] ()
-    :<|> "cliente" :> ReqBody '[JSON] Cliente :> Post '[JSON] ResultadoResponse 
-    :<|> "cliente"  :> Verb 'OPTIONS 200 '[JSON] ()
-    :<|> "clientes" :> Get '[JSON] ClienteResponse
-    :<|> "cliente" :> Capture "id" Int :> Get '[JSON] Cliente
-    :<|> "cliente" :> Capture "id" Int :> "nome" :> ReqBody '[JSON] ClienteNome :> Patch '[JSON] NoContent
-    :<|> "cliente" :> Capture "id" Int :> ReqBody '[JSON] Cliente :> Put '[JSON] NoContent
-    :<|> "cliente" :> Capture "id" Int :> Delete '[JSON] NoContent
-    :<|> "cliente" :> ReqBody '[JSON] Cliente :> Post '[JSON] ResultadoResponse
+type API =
+       "veiculos" :> Get '[JSON] VehicleList
+  :<|> "veiculos" :> Verb 'OPTIONS 200 '[JSON] ()
+  :<|> "veiculo" :> ReqBody '[JSON] VehicleInput :> Post '[JSON] VehicleIdResponse
+  :<|> "veiculo" :> Verb 'OPTIONS 200 '[JSON] ()
+  :<|> "veiculo" :> Capture "id" Int :> Get '[JSON] Vehicle
+  :<|> "veiculo" :> Capture "id" Int :> Verb 'OPTIONS 200 '[JSON] ()
+  :<|> "veiculo" :> Capture "id" Int :> ReqBody '[JSON] VehicleInput :> Put '[JSON] NoContent
+  :<|> "veiculo" :> Capture "id" Int :> ReqBody '[JSON] VehicleModelo :> Patch '[JSON] NoContent
+  :<|> "veiculo" :> Capture "id" Int :> Delete '[JSON] NoContent
 
-handlerPostCliente :: Connection -> Cliente -> Handler ResultadoResponse
-handlerPostCliente conn cli = do
-    res <- liftIO $ query conn "INSERT INTO Cliente (nome, cpf) VALUES (?, ?) RETURNING id" (nome cli, cpf cli)
-    case res of
-        [Only newId] -> pure (ResultadoResponse newId)
-        _ -> throwError err500
+handlerListVehicles :: Connection -> Handler VehicleList
+handlerListVehicles conn = do
+  res <- liftIO $ query_ conn "SELECT id, placa, modelo, ano FROM Veiculo"
+  let vehicles = map (\(id', placa', modelo', ano') -> Vehicle id' placa' modelo' ano') res
+  pure (VehicleList vehicles)
 
-handleDeleteCliente :: Connection -> Int -> Handler NoContent
-handleDeleteCliente conn clienteId = do
-    res <- liftIO $ execute conn "DELETE FROM Cliente WHERE id = ?" (Only clienteId)
-    if res == 1
-        then pure NoContent
-        else throwError err404
+handlerGetVehicle :: Connection -> Int -> Handler Vehicle
+handlerGetVehicle conn vehicleId = do
+  res <- liftIO $ query conn "SELECT id, placa, modelo, ano FROM Veiculo WHERE id = ?" (Only vehicleId)
+  case res of
+    [(id', placa', modelo', ano')] -> pure (Vehicle id' placa' modelo' ano')
+    _ -> throwError err404
 
-handlePutCliente :: Connection -> Int -> Cliente -> Handler NoContent
-handlePutCliente conn clienteId cli = do
-    res <- liftIO $ execute conn "UPDATE Cliente SET nome = ?, cpf = ? WHERE id = ?" (nome cli, cpf cli, clienteId)
+handlerPostVehicle :: Connection -> VehicleInput -> Handler VehicleIdResponse
+handlerPostVehicle conn VehicleInput {placa, modelo, ano} = do
+  res <- liftIO $ query conn "INSERT INTO Veiculo (placa, modelo, ano) VALUES (?, ?, ?) RETURNING id" (placa, modelo, ano)
+  case res of
+    [Only newId] -> pure (VehicleIdResponse newId)
+    _ -> throwError err500
 
-handlerPatchClienteNome :: Connection -> Int -> ClienteNome -> Handler NoContent
-handlerPatchClienteNome conn clienteId (ClienteNome novoNome) = do
-    res <- liftIO $ execute conn "UPDATE Cliente SET nome = ? WHERE id = ?" (novoNome, clienteId)
-    if res == 1
-        then pure NoContent
-        else throwError err404
+handlerPutVehicle :: Connection -> Int -> VehicleInput -> Handler NoContent
+handlerPutVehicle conn vehicleId VehicleInput {placa, modelo, ano} = do
+  res <- liftIO $ execute conn "UPDATE Veiculo SET placa = ?, modelo = ?, ano = ? WHERE id = ?" (placa, modelo, ano, vehicleId)
+  if res == 1 then pure NoContent else throwError err404
 
-handlerClienteById :: Connection -> Int -> Handler Cliente
-handlerClienteById conn clienteId = do
-    res <- liftIO $ query conn "SELECT * FROM Cliente WHERE id = ?" (Only clienteId)
-    case res of
-        [(id', nome', cpf')] -> pure (Cliente id' nome' cpf')
-        _ -> throwError err404
+handlerPatchModelo :: Connection -> Int -> VehicleModelo -> Handler NoContent
+handlerPatchModelo conn vehicleId VehicleModelo {novoModelo} = do
+  res <- liftIO $ execute conn "UPDATE Veiculo SET modelo = ? WHERE id = ?" (novoModelo, vehicleId)
+  if res == 1 then pure NoContent else throwError err404
 
-handlerClienteTodos :: Connection -> Handler ClienteResponse
-handlerClienteTodos conn = do 
-    res <- liftIO $ query_ conn "SELECT id, nome, cpf FROM Cliente" 
-    let result = map (\(id', nome', cpf') -> Cliente id' nome' cpf') res
-    pure (ClienteResponse result)
-
-handlerCliente :: Connection -> Cliente -> Handler ResultadoResponse
-handlerCliente conn cli = do 
-    res <- liftIO $ query conn "INSERT INTO Cliente (nome,cpf) VALUES (?,?) RETURNING id" (nome cli, cpf cli)
-    case res of 
-        [Only novoId] -> pure (ResultadoResponse $ novoId)
-        _ -> throwError err500
-
-handlerSoma :: Calculadora -> Handler ResultadoResponse
-handlerSoma (Calculadora x y) = pure (ResultadoResponse $ x + y)
+handlerDeleteVehicle :: Connection -> Int -> Handler NoContent
+handlerDeleteVehicle conn vehicleId = do
+  res <- liftIO $ execute conn "DELETE FROM Veiculo WHERE id = ?" (Only vehicleId)
+  if res == 1 then pure NoContent else throwError err404
 
 options :: Handler ()
 options = pure ()
 
--- Handler eh uma Monada que tem IO embutido
-handlerHello :: Handler String 
-handlerHello = pure "Ola, mundo!"
-
-server :: Connection -> Server API 
-server conn = handlerHello 
-            :<|> handlerSoma 
-            :<|> options 
-            :<|> handlerCliente conn 
-            :<|> options 
-            :<|> handlerClienteTodos conn
-            :<|> handlerClienteById conn
-            :<|> handlerPatchClienteNome conn
-            :<|> handlePutCliente conn
-            :<|> handleDeleteCliente conn
-            :<|> handlerPostCliente conn
+server :: Connection -> Server API
+server conn =
+     handlerListVehicles conn
+  :<|> options
+  :<|> handlerPostVehicle conn
+  :<|> options
+  :<|> handlerGetVehicle conn
+  :<|> options
+  :<|> handlerPutVehicle conn
+  :<|> handlerPatchModelo conn
+  :<|> handlerDeleteVehicle conn
 
 addCorsHeader :: Middleware
 addCorsHeader app' req resp =
   app' req $ \res ->
-    resp $ mapResponseHeaders
-      ( \hs ->
-          [ ("Access-Control-Allow-Origin", "*")
-          , ("Access-Control-Allow-Headers", "Content-Type, Authorization")
-          , ("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-          ] ++ hs
-      )
-      res
+    resp $
+      mapResponseHeaders
+        ( \hs ->
+            [ ("Access-Control-Allow-Origin", "*")
+            , ("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            , ("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+            ]
+              ++ hs
+        )
+        res
 
-app :: Connection -> Application 
-app conn = addCorsHeader (serve (Proxy @API) (server conn))
+app :: Connection -> Application
+app conn = addCorsHeader (serve (Proxy :: Proxy API) (server conn))

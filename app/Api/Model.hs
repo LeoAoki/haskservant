@@ -1,40 +1,48 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 module Api.Model where
 
 import Data.Aeson
 import GHC.Generics
 
-data Calculadora = Calculadora {
-    n1 :: Int,
-    n2 :: Int 
-} deriving (Show, Generic)
+data Vehicle = Vehicle
+  { idVeiculo :: Int
+  , placa :: String
+  , modelo :: String
+  , ano :: Int
+  }
+  deriving (Show, Generic)
 
-instance FromJSON Calculadora where 
-instance ToJSON Calculadora where 
+instance FromJSON Vehicle
+instance ToJSON Vehicle
 
-data ResultadoResponse = ResultadoResponse {
-    resultado :: Int
-} deriving (Show, Generic)
+data VehicleInput = VehicleInput
+  { placa :: String
+  , modelo :: String
+  , ano :: Int
+  }
+  deriving (Show, Generic)
 
-instance ToJSON ResultadoResponse where 
+instance FromJSON VehicleInput
+instance ToJSON VehicleInput
 
-data Cliente = Cliente {
-    idCliente :: Int,
-    nome :: String,
-    cpf :: String
-} deriving (Show, Generic)
+data VehicleList = VehicleList
+  { veiculos :: [Vehicle]
+  }
+  deriving (Show, Generic)
 
-instance FromJSON Cliente where 
-instance ToJSON Cliente where 
+instance ToJSON VehicleList
 
-data ClienteResponse = ClienteResponse {
-    clientes :: [Cliente]
-} deriving (Show, Generic)
+data VehicleIdResponse = VehicleIdResponse
+  { resultado :: Int
+  }
+  deriving (Show, Generic)
 
-instance ToJSON ClienteResponse where
+instance ToJSON VehicleIdResponse
 
-data ClienteNome = ClienteNome {
-    novoNome :: String
-} deriving (Show, Generic)
+data VehicleModelo = VehicleModelo
+  { novoModelo :: String
+  }
+  deriving (Show, Generic)
 
-instance FromJSON ClienteNome where
+instance FromJSON VehicleModelo
